@@ -1,13 +1,31 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
+import os
 
 # Configuração da página do site (Modo Wide / largura total)
-st.set_page_config(page_title="Buscador de Medicamentos", page_icon="💊", layout="wide")
+st.set_page_config(page_title="Buscador de Medicamentos - Santana de Parnaíba", page_icon="💊", layout="wide")
 
-# Título do site
-st.title("💊 Buscador de Medicamentos")
-st.markdown("Consulte os preços de referência (PMC), genéricos, similares e opções disponíveis na rede pública.")
+# Cabeçalho com os logotipos da Prefeitura e do SUS lado a lado
+col_logo1, col_titulo, col_logo2 = st.columns([1.5, 3, 1])
+
+with col_logo1:
+    if os.path.exists("logo_prefeitura.png"):
+        st.image("logo_prefeitura.png", width=220)
+    else:
+        st.warning("Logo Prefeitura não encontrada na pasta.")
+
+with col_titulo:
+    st.markdown("<h2 style='text-align: center; color: #1e293b; margin-top: 10px;'>Buscador de Medicamentos</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.95em;'>Consulta de preços de referência (PMC), genéricos, similares e medicamentos disponibilizados pelo SUS na rede municipal de Santana de Parnaíba.</p>", unsafe_allow_html=True)
+
+with col_logo2:
+    if os.path.exists("logo_sus.png"):
+        st.image("logo_sus.png", width=140)
+    else:
+        st.warning("Logo SUS não encontrada na pasta.")
+
+st.markdown("---")
 
 # Função para carregar sugestões do banco
 @st.cache_data
@@ -28,7 +46,7 @@ st.markdown(
     """
     <div style="background-color: #f1f5f9; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
         <span style="font-weight: bold; color: #334155; margin-right: 15px;">LEGENDA:</span>
-        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito / Baixo Custo</span>
+        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito (REMUME / Rede Pública) / Baixo Custo</span>
         <span style="color: #854d0e; font-weight: bold; margin-right: 15px;">🟡 Custo Intermediário</span>
         <span style="color: #991b1b; font-weight: bold; margin-right: 15px;">🔴 Custo Elevado</span>
         <br><span style="color: #64748b; font-size: 0.85em; font-style: italic;">* PMC: Preço Máximo ao Consumidor estabelecido pela CMED/Anvisa.</span>
@@ -69,13 +87,12 @@ if st.button("Pesquisar", type="primary") or termo_busca:
             if df.empty:
                 st.info("Nenhum medicamento encontrado com esse termo.")
             else:
-                # Calcula quantis para coloração/classificação
                 precos_validos = df[(df['na_remume'] == 0) & (df['preco'] > 0)]['preco']
                 p33 = precos_validos.quantile(0.33) if not precos_validos.empty else 0
                 p66 = precos_validos.quantile(0.66) if not precos_validos.empty else 0
 
                 resultados_formatados = []
-                cores_linhas = [] # Guarda a cor de fundo de cada linha para colorir a tabela inteira
+                cores_linhas = []
 
                 for _, row in df.iterrows():
                     preco = row['preco']
@@ -90,7 +107,7 @@ if st.button("Pesquisar", type="primary") or termo_busca:
                             preco_str = f"R$ {preco:.2f}"
                             if preco <= p33:
                                 disp_str = "Particular (Preço Baixo)"
-                                cor_fundo = "#dcfce7" # Verde claro
+                                cor_fundo = "#dcfce7"
                             elif preco <= p66:
                                 disp_str = "Particular (Preço Intermediário)"
                                 cor_fundo = "#fef9c3" # Amarelo claro
@@ -114,18 +131,15 @@ if st.button("Pesquisar", type="primary") or termo_busca:
 
                 df_exibicao = pd.DataFrame(resultados_formatados)
 
-                # Função do Pandas Styler para pintar a linha inteira e ajustar quebras de texto (sem barra lateral)
                 def colorir_tabela(row):
                     cor = cores_linhas[row.name]
                     return [f'background-color: {cor}; color: #1e293b; text-align: left;' for _ in row]
 
                 df_estilizado = df_exibicao.style.apply(colorir_tabela, axis=1)
 
-                # Injeta CSS para forçar a tabela a ocupar 100% da largura, evitando barras de rolagem lateral e quebrando os textos longos
                 st.markdown(
                     """
                     <style>
-                        /* Força a tabela a preencher a largura total sem precisar rolar para o lado */
                         iframe { width: 100% !important; }
                         div[data-testid="stDataFrame"] { width: 100% !important; }
                         table { width: 100% !important; table-layout: auto !important; }
@@ -135,7 +149,6 @@ if st.button("Pesquisar", type="primary") or termo_busca:
                     unsafe_allow_html=True
                 )
 
-                # Exibe a tabela estilizada e ajustada para caber na tela
                 st.dataframe(df_estilizado, use_container_width=True, hide_index=True)
 
         except Exception as e:
