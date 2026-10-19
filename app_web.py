@@ -4,7 +4,7 @@ import pandas as pd
 import os
 
 # Configuração da página do site (Modo Wide / largura total)
-st.set_page_config(page_title="Buscador de Medicamentos", page_icon="💊", layout="wide")
+st.set_page_config(page_title="💊 Buscador de Medicamentos - Santana de Parnaíba", page_icon="💊", layout="wide")
 
 # Cabeçalho centralizado com os logotipos
 col_logo1, col_titulo, col_logo2 = st.columns([1, 4, 1])
@@ -16,7 +16,7 @@ with col_logo1:
         st.warning("Logo Prefeitura não encontrada na pasta.")
 
 with col_titulo:
-    st.markdown("<h2 style='text-align: center; color: #1e293b; margin-top: 5px;'>💊 Buscador de Medicamentos - Santana de Parnaíba (SP)</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #1e293b; margin-top: 5px;'>💊 Buscador de Medicamentos - Santana de Parnaíba</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.95em; margin-bottom: 0px;'>Consulta de preços de referência (PMC), genéricos, similares e medicamentos disponibilizados pelo SUS na rede municipal de Santana de Parnaíba.</p>", unsafe_allow_html=True)
 
 with col_logo2:
@@ -46,7 +46,7 @@ st.markdown(
     """
     <div style="background-color: #f1f5f9; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
         <span style="font-weight: bold; color: #334155; margin-right: 15px;">LEGENDA:</span>
-        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito (Rede Pública) / Baixo Custo</span>
+        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito (REMUME / Rede Pública) / Baixo Custo</span>
         <span style="color: #854d0e; font-weight: bold; margin-right: 15px;">🟡 Custo Intermediário</span>
         <span style="color: #991b1b; font-weight: bold; margin-right: 15px;">🔴 Custo Elevado</span>
         <br><span style="color: #64748b; font-size: 0.85em; font-style: italic;">* PMC: Preço Máximo ao Consumidor estabelecido pela CMED/Anvisa.</span>
@@ -72,9 +72,9 @@ if st.button("Pesquisar", type="primary") or termo_busca:
         try:
             conexao = sqlite3.connect("medicamentos.db")
             
-            # Consulta original: Prioriza a rede pública em cima (na_remume DESC) e ordena por preço asc
+            # Busca os medicamentos equivalentes pela substância limpa
             query = """
-                SELECT substancia, marca, apresentacao, laboratorio, preco, na_remume 
+                SELECT substancia, marca, apresentacao, laboratorio, preco, na_remume, marca_limpa, substancia_limpa 
                 FROM produtos 
                 WHERE substancia_limpa IN (
                     SELECT DISTINCT substancia_limpa 
@@ -82,13 +82,18 @@ if st.button("Pesquisar", type="primary") or termo_busca:
                     WHERE substancia_limpa LIKE ? OR marca_limpa LIKE ?
                 )
                 ORDER BY 
+                    CASE 
+                        WHEN UPPER(marca) = ? THEN 1
+                        WHEN UPPER(marca_limpa) LIKE ? THEN 2
+                        ELSE 3
+                    END ASC,
                     na_remume DESC, 
                     CASE WHEN preco = 0 THEN 999999 ELSE preco END ASC
             """
             
             param_search = f"%{termo_busca}%"
             
-            df = pd.read_sql(query, conexao, params=(param_search, param_search))
+            df = pd.read_sql(query, conexao, params=(param_search, param_search, termo_busca, param_search))
             conexao.close()
 
             if df.empty:
