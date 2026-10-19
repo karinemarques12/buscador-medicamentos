@@ -4,7 +4,7 @@ import pandas as pd
 import os
 
 # Configuração da página do site (Modo Wide / largura total)
-st.set_page_config(page_title="Buscador de Medicamentos", page_icon="💊", layout="wide")
+st.set_page_config(page_title="💊 Buscador de Medicamentos - Santana de Parnaíba", page_icon="💊", layout="wide")
 
 # Cabeçalho centralizado com os logotipos
 col_logo1, col_titulo, col_logo2 = st.columns([1, 4, 1])
@@ -16,7 +16,7 @@ with col_logo1:
         st.warning("Logo Prefeitura não encontrada na pasta.")
 
 with col_titulo:
-    st.markdown("<h2 style='text-align: center; color: #1e293b; margin-top: 5px;'>💊 Buscador de Medicamentos - Santana de Parnaíba (SP)</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #1e293b; margin-top: 5px;'>💊 Buscador de Medicamentos - Santana de Parnaíba</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.95em; margin-bottom: 0px;'>Consulta de preços de referência (PMC), genéricos, similares e medicamentos disponibilizados pelo SUS na rede municipal de Santana de Parnaíba.</p>", unsafe_allow_html=True)
 
 with col_logo2:
@@ -46,7 +46,7 @@ st.markdown(
     """
     <div style="background-color: #f1f5f9; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
         <span style="font-weight: bold; color: #334155; margin-right: 15px;">LEGENDA:</span>
-        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito (Rede Pública) / Baixo Custo</span>
+        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito (REMUME / Rede Pública) / Baixo Custo</span>
         <span style="color: #854d0e; font-weight: bold; margin-right: 15px;">🟡 Custo Intermediário</span>
         <span style="color: #991b1b; font-weight: bold; margin-right: 15px;">🔴 Custo Elevado</span>
         <br><span style="color: #64748b; font-size: 0.85em; font-style: italic;">* PMC: Preço Máximo ao Consumidor estabelecido pela CMED/Anvisa.</span>
@@ -90,7 +90,7 @@ if st.button("Pesquisar", type="primary") or termo_busca:
             if df.empty:
                 st.info("Nenhum medicamento encontrado com esse termo.")
             else:
-                # Função de ordenação por relevância do nome (quem começa com o termo vem primeiro)
+                # Função de ordenação por relevância do nome (prefixo exato primeiro)
                 def prioridade_nome(row):
                     s_name = str(row['substancia']).upper()
                     m_name = str(row['marca']).upper()
@@ -102,15 +102,30 @@ if st.button("Pesquisar", type="primary") or termo_busca:
 
                 df['relevancia'] = df.apply(prioridade_nome, axis=1)
 
-                # Separa os da REDE PÚBLICA e limita a no máximo 8 resultados
-                df_pub = df[df['na_remume'] == 1].sort_values(by=['relevancia', 'substancia']).head(8)
+                # --- SELEÇÃO INTELIGENTE DA REDE PÚBLICA (REMUME = 1) ---
+                df_pub_full = df[df['na_remume'] == 1].sort_values(by=['relevancia', 'apresentacao', 'substancia'])
                 
-                # Separa os PARTICULARES (ordenados por relevância e menor preço)
+                if not df_pub_full.empty:
+                    # 1. Pega primeiro uma linha para CADA APRESENTAÇÃO DIFERENTE disponível
+                    df_pub_unicas = df_pub_full.drop_duplicates(subset=['apresentacao'], keep='first')
+                    
+                    # 2. Se as apresentações únicas já forem até 8, usa elas. Se forem mais de 8, pega as 8 primeiras únicas.
+                    if len(df_pub_unicas) >= 8:
+                        df_pub = df_pub_unicas.head(8)
+                    else:
+                        # Se houver menos de 8 apresentações únicas (ex: 3 apresentações), preenche as vagas restantes (até completar 8) com outras opções
+                        sobra_vagas = 8 - len(df_pub_unicas)
+                        df_resto = df_pub_full.loc[~df_pub_full.index.isin(df_pub_unicas.index)].head(sobra_vagas)
+                        df_pub = pd.concat([df_pub_unicas, df_resto], ignore_index=True)
+                else:
+                    df_pub = pd.DataFrame()
+
+                # --- REDE PARTICULAR (REMUME = 0) ---
                 df_part = df[df['na_remume'] == 0].copy()
                 df_part['preco_ordem'] = df_part['preco'].apply(lambda x: 999999 if x == 0 else x)
                 df_part = df_part.sort_values(by=['relevancia', 'preco_ordem'])
 
-                # Junta as duas listas (até 8 gratuitos no topo + particulares abaixo)
+                # Unifica a lista final (Rede Pública diversificada no topo + Particulares abaixo)
                 df_final = pd.concat([df_pub, df_part], ignore_index=True)
 
                 # Cálculo dos quartis de preços para coloração
