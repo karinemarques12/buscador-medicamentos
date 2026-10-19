@@ -4,7 +4,7 @@ import pandas as pd
 import os
 
 # Configuração da página do site (Modo Wide / largura total)
-st.set_page_config(page_title="💊 Buscador de Medicamentos - Santana de Parnaíba", page_icon="💊", layout="wide")
+st.set_page_config(page_title="Buscador de Medicamentos", page_icon="💊", layout="wide")
 
 # Cabeçalho centralizado com os logotipos
 col_logo1, col_titulo, col_logo2 = st.columns([1, 4, 1])
@@ -16,7 +16,7 @@ with col_logo1:
         st.warning("Logo Prefeitura não encontrada na pasta.")
 
 with col_titulo:
-    st.markdown("<h2 style='text-align: center; color: #1e293b; margin-top: 5px;'>💊 Buscador de Medicamentos - Santana de Parnaíba</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #1e293b; margin-top: 5px;'>💊 Buscador de Medicamentos - Santana de Parnaíba (SP)</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.95em; margin-bottom: 0px;'>Consulta de preços de referência (PMC), genéricos, similares e medicamentos disponibilizados pelo SUS na rede municipal de Santana de Parnaíba.</p>", unsafe_allow_html=True)
 
 with col_logo2:
