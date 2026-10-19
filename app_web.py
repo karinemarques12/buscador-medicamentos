@@ -4,24 +4,24 @@ import pandas as pd
 import os
 
 # Configuração da página do site (Modo Wide / largura total)
-st.set_page_config(page_title="Buscador de Medicamentos - Santana de Parnaíba", page_icon="💊", layout="wide")
+st.set_page_config(page_title="💊 Buscador de Medicamentos - Santana de Parnaíba", page_icon="💊", layout="wide")
 
-# Cabeçalho com os logotipos da Prefeitura e do SUS lado a lado
-col_logo1, col_titulo, col_logo2 = st.columns([1.5, 3, 1])
+# Cabeçalho centralizado com os logotipos
+col_logo1, col_titulo, col_logo2 = st.columns([1, 4, 1])
 
 with col_logo1:
     if os.path.exists("logo_prefeitura.png"):
-        st.image("logo_prefeitura.png", width=220)
+        st.image("logo_prefeitura.png", width=200)
     else:
         st.warning("Logo Prefeitura não encontrada na pasta.")
 
 with col_titulo:
-    st.markdown("<h2 style='text-align: center; color: #1e293b; margin-top: 10px;'>Buscador de Medicamentos</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.95em;'>Consulta de preços de referência (PMC), genéricos, similares e medicamentos disponibilizados pelo SUS na rede municipal de Santana de Parnaíba.</p>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #1e293b; margin-top: 5px;'>💊 Buscador de Medicamentos - Santana de Parnaíba</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.95em; margin-bottom: 0px;'>Consulta de preços de referência (PMC), genéricos, similares e medicamentos disponibilizados pelo SUS na rede municipal de Santana de Parnaíba.</p>", unsafe_allow_html=True)
 
 with col_logo2:
     if os.path.exists("logo_sus.png"):
-        st.image("logo_sus.png", width=140)
+        st.image("logo_sus.png", width=130)
     else:
         st.warning("Logo SUS não encontrada na pasta.")
 
@@ -71,6 +71,8 @@ if st.button("Pesquisar", type="primary") or termo_busca:
     else:
         try:
             conexao = sqlite3.connect("medicamentos.db")
+            
+            # Query com ordenação por relevância do termo (exato/prefixo primeiro)
             query = """
                 SELECT substancia, marca, apresentacao, laboratorio, preco, na_remume 
                 FROM produtos 
@@ -79,9 +81,21 @@ if st.button("Pesquisar", type="primary") or termo_busca:
                     FROM produtos 
                     WHERE substancia_limpa LIKE ? OR marca_limpa LIKE ?
                 )
-                ORDER BY na_remume DESC, CASE WHEN preco = 0 THEN 999999 ELSE preco END ASC
+                ORDER BY 
+                    CASE 
+                        WHEN UPPER(substancia) LIKE ? THEN 1
+                        WHEN UPPER(marca) LIKE ? THEN 2
+                        WHEN UPPER(substancia_limpa) LIKE ? THEN 3
+                        ELSE 4
+                    END ASC,
+                    na_remume DESC, 
+                    CASE WHEN preco = 0 THEN 999999 ELSE preco END ASC
             """
-            df = pd.read_sql(query, conexao, params=(f"%{termo_busca}%", f"%{termo_busca}%"))
+            
+            param_exact = f"%{termo_busca}%"
+            param_prefix = f"{termo_busca}%"
+            
+            df = pd.read_sql(query, conexao, params=(param_exact, param_exact, param_prefix, param_prefix, param_prefix))
             conexao.close()
 
             if df.empty:
