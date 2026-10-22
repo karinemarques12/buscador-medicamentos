@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import requests
 import math
+import re
 
 # Configuração da página do site (Modo Wide / largura total)
 st.set_page_config(page_title="Buscador de Medicamentos - SPB", page_icon="💊", layout="wide")
@@ -48,7 +49,7 @@ st.markdown(
     """
     <div style="background-color: #f1f5f9; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
         <span style="font-weight: bold; color: #334155; margin-right: 15px;">LEGENDA:</span>
-        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito (Rede Pública) / Baixo Custo</span>
+        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito / Rede Pública / Baixo Custo</span>
         <span style="color: #854d0e; font-weight: bold; margin-right: 15px;">🟡 Custo Intermediário</span>
         <span style="color: #991b1b; font-weight: bold; margin-right: 15px;">🔴 Custo Elevado</span>
         <br><span style="color: #64748b; font-size: 0.85em; font-style: italic;">* PMC: Preço Máximo ao Consumidor estabelecido pela CMED/Anvisa.</span>
@@ -161,7 +162,7 @@ if st.button("Pesquisar", type="primary") or termo_busca:
         except Exception as e:
             st.error(f"Erro ao consultar o banco de dados: {e}")
 
-# --- SEÇÃO DE LOCAIS DE RETIRADA E BUSCA POR CEP COM COORDENADAS PRÉ-DEFINIDAS ---
+# --- SEÇÃO DE LOCAIS DE RETIRADA E BUSCA POR CEP PRECISA ---
 st.markdown("---")
 st.markdown("### 📍 Onde Encontrar / Locais de Atendimento e Proximidade")
 
@@ -174,46 +175,43 @@ if os.path.exists(excel_file):
         df_part_excel = pd.read_excel(excel_file, sheet_name="Particular", skiprows=2)
         df_pub_excel = pd.read_excel(excel_file, sheet_name="Rede Publica", skiprows=3)
 
-        # Coordenadas geográficas aproximadas fixas para cada UBS e Farmácia de Santana de Parnaíba / região
-        # Isso elimina a lentidão de chamadas múltiplas à API de mapas em tempo de execução
-        coords_ubs = {
-            "UBS Alphaville/Tamboré": (-23.4795, -46.8521),
-            "UBS Chácara das Garças": (-23.4412, -46.9155),
-            "UBS Colinas da Anhanguera": (-23.4215, -46.8832),
-            "UBS Dra. Roseli Folchini Boross": (-23.4350, -46.9420),
-            "UBS Diego de Lima Camilo": (-23.4480, -46.9310),
-            "UBS Dr. Álvaro Ribeiro": (-23.4420, -46.9200),
-            "UBS Limério Cardoso Borchat": (-23.4390, -46.9180),
-            "UBS Ingaí": (-23.4100, -46.9500),
-            "UBS Sítio do Morro": (-23.4500, -46.9600)
-        }
+        # Função auxiliar para extrair o CEP de uma string de endereço
+        def extrair_cep(texto):
+            match = re.search(r'\b\d{5}-\d{3}\b|\b\d{8}\b', str(texto))
+            if match:
+                return match.group(0).replace("-", "")
+            return None
 
-        coords_farmacias = {
-            "Farma Med": (-23.4385, -46.9190),
-            "Drogaria São Paulo": (-23.4380, -46.9185), # Fazendinha
-            "Farmais Drogarias": (-23.4400, -46.9210),
-            "Drogaria Estrela Dalva": (-23.4350, -46.9120),
-            "Drogasil": (-23.4780, -46.8480),
-            "Campeão Farma": (-23.4370, -46.9170),
-            "Campeão Farma Santa Ana": (-23.4410, -46.9205),
-            "Drogaria Leal": (-23.4300, -46.9000),
-            "Farmácia Santana de Parnaíba - Saúde Farma": (-23.4405, -46.9195),
-            "Farma Ponte": (-23.4395, -46.9188),
-            "Drogaria São Luis": (-23.4402, -46.9212),
-            "Farma Santana 1 - FarmaEduardo": (-23.4500, -46.9100),
-            "Drogaria Saúde Farma": (-23.4600, -46.9700),
-            "Drogaria Rede Mais Brasi": (-23.4400, -46.9190),
-            "Farma 10 - Fazendinha": (-23.4388, -46.9192),
-            "Droga Raia": (-23.4750, -46.8500),
-            "Drogaria Bem Estar - Unidade 1": (-23.4590, -46.9680),
-            "Farma Mais Vida": (-23.4580, -46.9650),
-            "ULTRAFARMA POPULAR CAJAMAR": (-23.3850, -46.8850),
-            "Drogaria Ipês": (-23.3830, -46.8820),
-            "Pharma Apoio": (-23.4800, -46.8550),
-            "Drogaria Far Márcia": (-23.4250, -46.8900),
-            "Drogaria Capricórnio": (-23.4510, -46.9110),
-            "Farmácia Farmatotal": (-23.4520, -46.9125)
-        }
+        # Função com cache para geocodificar endereços reais baseados no CEP da planilha
+        @st.cache_data
+        def obter_coordenada_endereco(endereco_str):
+            cep = extrair_cep(endereco_str)
+            if cep:
+                try:
+                    r = requests.get(f"https://viacep.com.br/ws/{cep}/json/", timeout=3)
+                    if r.status_code == 200:
+                        data = r.json()
+                        if "erro" not in data:
+                            rua = data.get('logradouro', '')
+                            bairro = data.get('bairro', '')
+                            cidade = data.get('localidade', '')
+                            uf = data.get('uf', '')
+                            q = f"{rua}, {bairro}, {cidade}, {uf}, Brasil"
+                            
+                            nom = requests.get(f"https://nominatim.openstreetmap.org/search?q={requests.utils.quote(q)}&format=json&limit=1", headers={'User-Agent': 'BuscadorMedParnaiba/1.0'}, timeout=3)
+                            if nom.status_code == 200 and nom.json():
+                                return float(nom.json()[0]['lat']), float(nom.json()[0]['lon'])
+                except:
+                    pass
+            
+            # Fallback usando o texto completo do endereço na API Nominatim
+            try:
+                nom = requests.get(f"https://nominatim.openstreetmap.org/search?q={requests.utils.quote(str(endereco_str) + ', Brasil')}&format=json&limit=1", headers={'User-Agent': 'BuscadorMedParnaiba/1.0'}, timeout=3)
+                if nom.status_code == 200 and nom.json():
+                    return float(nom.json()[0]['lat']), float(nom.json()[0]['lon'])
+            except:
+                pass
+            return None, None
 
         with tab_cep:
             st.markdown("#### Encontre os locais mais próximos digitando seu CEP")
@@ -245,71 +243,65 @@ if os.path.exists(excel_file):
                                 
                                 st.success(f"📍 **Endereço encontrado:** {rua}, {bairro} - {cidade}/{uf}")
                                 
-                                # Geocodifica APENAS o CEP do usuário (1 única requisição rápida)
+                                # Geocodifica o CEP digitado pelo usuário
                                 query_geo = f"{rua}, {bairro}, {cidade}, {uf}, Brasil"
-                                url_nominatim = f"https://nominatim.openstreetmap.org/search?q={requests.utils.quote(query_geo)}&format=json&limit=1"
                                 headers = {'User-Agent': 'BuscadorMedicamentosParnaiba/1.0'}
                                 
                                 lat_usuario, lon_usuario = None, None
                                 try:
-                                    geo_req = requests.get(url_nominatim, headers=headers, timeout=4)
+                                    geo_req = requests.get(f"https://nominatim.openstreetmap.org/search?q={requests.utils.quote(query_geo)}&format=json&limit=1", headers=headers, timeout=5)
                                     if geo_req.status_code == 200 and geo_req.json():
-                                        geo_data = geo_req.json()
-                                        lat_usuario = float(geo_data[0]['lat'])
-                                        lon_usuario = float(geo_data[0]['lon'])
+                                        lat_usuario = float(geo_req.json()[0]['lat'])
+                                        lon_usuario = float(geo_req.json()[0]['lon'])
                                     else:
-                                        # Fallback para bairro/cidade se rua exata não achar
-                                        query_fallback = f"{bairro}, {cidade}, {uf}, Brasil"
-                                        url_fall = f"https://nominatim.openstreetmap.org/search?q={requests.utils.quote(query_fallback)}&format=json&limit=1"
-                                        fall_req = requests.get(url_fall, headers=headers, timeout=4)
-                                        if fall_req.status_code == 200 and fall_req.json():
-                                            lat_usuario = float(fall_req.json()[0]['lat'])
-                                            lon_usuario = float(fall_req.json()[0]['lon'])
-                                        else:
-                                            # Coordenada padrão de Santana de Parnaíba caso falhe
-                                            lat_usuario, lon_usuario = -23.4431, -46.9175
+                                        geo_fall = requests.get(f"https://nominatim.openstreetmap.org/search?q={requests.utils.quote(bairro + ', ' + cidade + ', ' + uf + ', Brasil')}&format=json&limit=1", headers=headers, timeout=5)
+                                        if geo_fall.status_code == 200 and geo_fall.json():
+                                            lat_usuario = float(geo_fall.json()[0]['lat'])
+                                            lon_usuario = float(geo_fall.json()[0]['lon'])
                                 except:
-                                    lat_usuario, lon_usuario = -23.4431, -46.9175
+                                    pass
 
-                                def calcular_distancia(lat1, lon1, lat2, lon2):
-                                    R = 6371
-                                    dlat = math.radians(lat2 - lat1)
-                                    dlon = math.radians(lon2 - lon1)
-                                    a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
-                                    c = 2 * math.asin(math.sqrt(a))
-                                    return R * c
+                                if lat_usuario is None or lon_usuario is None:
+                                    st.error("Não foi possível localizar as coordenadas geográficas deste CEP.")
+                                else:
+                                    def calcular_distancia(lat1, lon1, lat2, lon2):
+                                        if lat2 is None or lon2 is None:
+                                            return 9999
+                                        R = 6371
+                                        dlat = math.radians(lat2 - lat1)
+                                        dlon = math.radians(lon2 - lon1)
+                                        a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
+                                        c = 2 * math.asin(math.sqrt(a))
+                                        return R * c
 
-                                st.markdown("---")
-                                st.markdown("##### 🏥 UBSs Mais Próximas:")
-                                ubs_proximas = []
-                                for _, row in df_pub_excel.iterrows():
-                                    nome_loc = str(row['Nome']).strip()
-                                    lat2, lon2 = coords_ubs.get(nome_loc, (-23.4431, -46.9175))
-                                    dist = calcular_distancia(lat_usuario, lon_usuario, lat2, lon2)
-                                    ubs_proximas.append((dist, row))
-                                
-                                ubs_proximas.sort(key=lambda x: x[0])
-                                for dist, row in ubs_proximas[:3]:
-                                    dist_str = f" (~{dist:.1f} km)"
-                                    link_end = f"[{row['Endereço']}]({row['Link localização']})" if str(row['Link localização']).startswith("http") else row['Endereço']
-                                    st.markdown(f"- **{row['Nome']}**{dist_str}  \n  📍 {link_end}  \n  📞 {row['Telefone de Contato']}")
+                                    st.markdown("---")
+                                    st.markdown("##### 🏥 UBSs Mais Próximas:")
+                                    ubs_proximas = []
+                                    for _, row in df_pub_excel.iterrows():
+                                        lat_loc, lon_loc = obter_coordenada_endereco(row['Endereço'])
+                                        dist = calcular_distancia(lat_usuario, lon_usuario, lat_loc, lon_loc)
+                                        ubs_proximas.append((dist, row))
+                                    
+                                    ubs_proximas.sort(key=lambda x: x[0])
+                                    for dist, row in ubs_proximas[:3]:
+                                        dist_str = f" (~{dist:.1f} km)" if dist != 9999 else ""
+                                        link_end = f"[{row['Endereço']}]({row['Link localização']})" if str(row['Link localização']).startswith("http") else row['Endereço']
+                                        st.markdown(f"- **{row['Nome']}**{dist_str}  \n  📍 {link_end}  \n  📞 {row['Telefone de Contato']}")
 
-                                st.markdown("##### 🛒 Farmácias Particulares Mais Próximas:")
-                                farm_proximas = []
-                                for _, row in df_part_excel.iterrows():
-                                    nome_loc = str(row['Nome']).strip()
-                                    # Procura nas coordenadas conhecidas ou usa padrão central de Parnaíba
-                                    lat2, lon2 = coords_farmacias.get(nome_loc, (-23.4431, -46.9175))
-                                    dist = calcular_distancia(lat_usuario, lon_usuario, lat2, lon2)
-                                    farm_proximas.append((dist, row))
-                                
-                                farm_proximas.sort(key=lambda x: x[0])
-                                for dist, row in farm_proximas[:5]:
-                                    dist_str = f" (~{dist:.1f} km)"
-                                    site = str(row['Site']).strip() if pd.notna(row['Site']) and str(row['Site']).strip() != 'nan' else None
-                                    nome_exib = f"[{row['Nome']}]({site})" if site and site.startswith("http") else row['Nome']
-                                    link_end = f"[{row['Endereço']}]({row['Link localização']})" if str(row['Link localização']).startswith("http") else row['Endereço']
-                                    st.markdown(f"- **{nome_exib}**{dist_str}  \n  📍 {link_end}  \n  📞 {row['Telefone de Contato']}")
+                                    st.markdown("##### 🛒 Farmácias Particulares Mais Próximas:")
+                                    farm_proximas = []
+                                    for _, row in df_part_excel.iterrows():
+                                        lat_loc, lon_loc = obter_coordenada_endereco(row['Endereço'])
+                                        dist = calcular_distancia(lat_usuario, lon_usuario, lat_loc, lon_loc)
+                                        farm_proximas.append((dist, row))
+                                    
+                                    farm_proximas.sort(key=lambda x: x[0])
+                                    for dist, row in farm_proximas[:5]:
+                                        dist_str = f" (~{dist:.1f} km)" if dist != 9999 else ""
+                                        site = str(row['Site']).strip() if pd.notna(row['Site']) and str(row['Site']).strip() != 'nan' else None
+                                        nome_exib = f"[{row['Nome']}]({site})" if site and site.startswith("http") else row['Nome']
+                                        link_end = f"[{row['Endereço']}]({row['Link localização']})" if str(row['Link localização']).startswith("http") else row['Endereço']
+                                        st.markdown(f"- **{nome_exib}**{dist_str}  \n  📍 {link_end}  \n  📞 {row['Telefone de Contato']}")
                     except Exception as err:
                         st.error(f"Erro ao processar a busca por CEP: {err}")
 
@@ -322,7 +314,7 @@ if os.path.exists(excel_file):
                 tel = str(row['Telefone de Contato']).strip()
                 
                 link_end = f"[{end}]({link})" if link.startswith("http") else end
-                st.markdown(f"- **{nome}**  \n  📍 **Endereço:** {link_end}  \n  📞 **Telefone:** {tel}")
+                st.markdown(f"- **{nome}**  \n  📍 {link_end}  \n  📞 {row['Telefone de Contato']}")
 
         with tab_part:
             st.markdown(f"#### Farmácias e Drogarias Particulares")
@@ -336,7 +328,7 @@ if os.path.exists(excel_file):
                 nome_exib = f"[{nome}]({site})" if site and site.startswith("http") else nome
                 link_end = f"[{end}]({link})" if link.startswith("http") else end
                 
-                st.markdown(f"- **{nome_exib}**  \n  📍 **Endereço:** {link_end}  \n  📞 **Telefone:** {tel}")
+                st.markdown(f"- **{nome_exib}**  \n  📍 {link_end}  \n  📞 {row['Telefone de Contato']}")
 
     except Exception as e:
         st.error(f"Erro ao carregar o arquivo Excel de locais: {e}")
