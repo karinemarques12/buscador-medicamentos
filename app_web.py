@@ -194,10 +194,10 @@ if os.path.exists(excel_file):
                 tel = str(row['Telefone de Contato']).strip()
                 site = str(row['Site']).strip() if pd.notna(row['Site']) and str(row['Site']).strip() != 'nan' else None
 
-                nome_exibicao = f"[{nome}]({site})" if site and site.startswith("http") else nome
+                nome_exib = f"[{nome}]({site})" if site and site.startswith("http") else nome
                 link_end = f"[{end}]({link})" if link.startswith("http") else end
                 
-                st.markdown(f"- **{nome_exibicao}**  \n  📍 **Endereço:** {link_end}  \n  📞 **Telefone:** {tel}")
+                st.markdown(f"- **{nome_exib}**  \n  📍 **Endereço:** {link_end}  \n  📞 **Telefone:** {tel}")
 
         with tab_cep:
             st.markdown("#### Encontre os locais mais próximos digitando seu CEP")
@@ -208,7 +208,6 @@ if os.path.exists(excel_file):
                 if len(cep_limpo) != 8:
                     st.warning("Por favor, digite um CEP válido com 8 dígitos.")
                 else:
-                    # Consulta ViaCEP
                     url_viacep = f"https://viacep.com.br/ws/{cep_limpo}/json/"
                     resp = requests.get(url_viacep).json()
                     
@@ -222,7 +221,6 @@ if os.path.exists(excel_file):
                         
                         st.success(f"📍 **Endereço encontrado:** {rua}, {bairro} - {cidade}/{uf}")
                         
-                        # Geocodificação do CEP via Nominatim
                         query_geo = f"{rua}, {bairro}, {cidade}, {uf}, Brasil"
                         url_nominatim = f"https://nominatim.openstreetmap.org/search?q={requests.utils.quote(query_geo)}&format=json&limit=1"
                         headers = {'User-Agent': 'BuscadorMedicamentosParnaiba/1.0'}
@@ -234,7 +232,6 @@ if os.path.exists(excel_file):
                             lat_usuario = float(geo_resp[0]['lat'])
                             lon_usuario = float(geo_resp[0]['lon'])
                         else:
-                            # Tenta pelo menos com bairro/cidade se a rua exata falhar
                             query_geo_fallback = f"{bairro}, {cidade}, {uf}, Brasil"
                             url_fallback = f"https://nominatim.openstreetmap.org/search?q={requests.utils.quote(query_geo_fallback)}&format=json&limit=1"
                             geo_fall_resp = requests.get(url_fallback, headers=headers).json()
@@ -246,15 +243,13 @@ if os.path.exists(excel_file):
                             if lat1 is None or lon1 is None:
                                 return 9999
                             try:
-                                # Geocodifica o endereço do local da planilha
                                 url_loc = f"https://nominatim.openstreetmap.org/search?q={requests.utils.quote(endereco_str + ', Santana de Parnaíba, SP, Brasil')}&format=json&limit=1"
                                 r_loc = requests.get(url_loc, headers=headers).json()
                                 if r_loc:
                                     lat2 = float(r_loc[0]['lat'])
                                     lon2 = float(r_loc[0]['lon'])
                                     
-                                    # Fórmula de Haversine
-                                    R = 6371 # Raio da Terra em km
+                                    R = 6371
                                     dlat = math.radians(lat2 - lat1)
                                     dlon = math.radians(lon2 - lon1)
                                     a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
@@ -272,7 +267,7 @@ if os.path.exists(excel_file):
                             ubs_proximas.append((dist, row))
                         
                         ubs_proximas.sort(key=lambda x: x[0])
-                        for dist, row in ubs_proximas[:3]: # Mostra as 3 mais próximas
+                        for dist, row in ubs_proximas[:3]:
                             dist_str = f" (~{dist:.1f} km)" if dist != 9999 else ""
                             link_end = f"[{row['Endereço']}]({row['Link localização']})" if str(row['Link localização']).startswith("http") else row['Endereço']
                             st.markdown(f"- **{row['Nome']}**{dist_str}  \n  📍 {link_end}  \n  📞 {row['Telefone de Contato']}")
@@ -284,12 +279,12 @@ if os.path.exists(excel_file):
                             farm_proximas.append((dist, row))
                         
                         farm_proximas.sort(key=lambda x: x[0])
-                        for dist, row in farm_proximas[:5]: # Mostra as 5 mais próximas
+                        for dist, row in farm_proximas[:5]:
                             dist_str = f" (~{dist:.1f} km)" if dist != 9999 else ""
                             site = str(row['Site']).strip() if pd.notna(row['Site']) and str(row['Site']).strip() != 'nan' else None
                             nome_exib = f"[{row['Nome']}]({site})" if site and site.startswith("http") else row['Nome']
                             link_end = f"[{row['Endereço']}]({row['Link localização']})" if str(row['Link localização']).startswith("http") else row['Endereço']
-                            st.markdown(f"- **{nome_exibexib if 'nome_exib' in locals() else row['Nome']}**{dist_str}  \n  📍 {link_end}  \n  📞 {row['Telefone de Contato']}")
+                            st.markdown(f"- **{nome_exib}**{dist_str}  \n  📍 {link_end}  \n  📞 {row['Telefone de Contato']}")
 
     except Exception as e:
         st.error(f"Erro ao carregar o arquivo Excel de locais: {e}")
