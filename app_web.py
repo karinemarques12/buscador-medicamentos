@@ -43,12 +43,12 @@ def carregar_sugestoes():
 
 sugestoes_globais = carregar_sugestoes()
 
-# LEGENDA ACIMA DA BUSCA
+# LEGENDA ACIMA DA BUSCA (SEM O TERMO REMUME)
 st.markdown(
     """
     <div style="background-color: #f1f5f9; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
         <span style="font-weight: bold; color: #334155; margin-right: 15px;">LEGENDA:</span>
-        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito (REMUME / Rede Pública) / Baixo Custo</span>
+        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito / Rede Pública / Baixo Custo</span>
         <span style="color: #854d0e; font-weight: bold; margin-right: 15px;">🟡 Custo Intermediário</span>
         <span style="color: #991b1b; font-weight: bold; margin-right: 15px;">🔴 Custo Elevado</span>
         <br><span style="color: #64748b; font-size: 0.85em; font-style: italic;">* PMC: Preço Máximo ao Consumidor estabelecido pela CMED/Anvisa.</span>
@@ -165,7 +165,8 @@ if st.button("Pesquisar", type="primary") or termo_busca:
 st.markdown("---")
 st.markdown("### 📍 Onde Encontrar / Locais de Atendimento e Proximidade")
 
-tab_pub, tab_part, tab_cep = st.tabs(["🏥 Rede Pública (UBS)", "🛒 Farmácias Particulares", "🔍 Buscar por CEP Próximo"])
+# CEP PRIMEIRO, SEGUIDO DA REDE PÚBLICA E FARMÁCIAS PARTICULARES
+tab_cep, tab_pub, tab_part = st.tabs(["🔍 Buscar por CEP Próximo", "🏥 Rede Pública (UBS)", "🛒 Farmácias Particulares"])
 
 excel_file = "Farmacias Particular e Rede Pública.xlsx"
 
@@ -173,31 +174,6 @@ if os.path.exists(excel_file):
     try:
         df_part_excel = pd.read_excel(excel_file, sheet_name="Particular", skiprows=2)
         df_pub_excel = pd.read_excel(excel_file, sheet_name="Rede Publica", skiprows=3)
-
-        with tab_pub:
-            st.markdown(f"#### Unidades Básicas de Saúde (UBS) - Rede Municipal ({len(df_pub_excel)} locais)")
-            for _, row in df_pub_excel.iterrows():
-                nome = str(row['Nome']).strip()
-                end = str(row['Endereço']).strip()
-                link = str(row['Link localização']).strip()
-                tel = str(row['Telefone de Contato']).strip()
-                
-                link_end = f"[{end}]({link})" if link.startswith("http") else end
-                st.markdown(f"- **{nome}**  \n  📍 **Endereço:** {link_end}  \n  📞 **Telefone:** {tel}")
-
-        with tab_part:
-            st.markdown(f"#### Farmácias e Drogarias Particulares ({len(df_part_excel)} locais)")
-            for _, row in df_part_excel.iterrows():
-                nome = str(row['Nome']).strip()
-                end = str(row['Endereço']).strip()
-                link = str(row['Link localização']).strip()
-                tel = str(row['Telefone de Contato']).strip()
-                site = str(row['Site']).strip() if pd.notna(row['Site']) and str(row['Site']).strip() != 'nan' else None
-
-                nome_exib = f"[{nome}]({site})" if site and site.startswith("http") else nome
-                link_end = f"[{end}]({link})" if link.startswith("http") else end
-                
-                st.markdown(f"- **{nome_exib}**  \n  📍 **Endereço:** {link_end}  \n  📞 **Telefone:** {tel}")
 
         with tab_cep:
             st.markdown("#### Encontre os locais mais próximos digitando seu CEP")
@@ -285,6 +261,31 @@ if os.path.exists(excel_file):
                             nome_exib = f"[{row['Nome']}]({site})" if site and site.startswith("http") else row['Nome']
                             link_end = f"[{row['Endereço']}]({row['Link localização']})" if str(row['Link localização']).startswith("http") else row['Endereço']
                             st.markdown(f"- **{nome_exib}**{dist_str}  \n  📍 {link_end}  \n  📞 {row['Telefone de Contato']}")
+
+        with tab_pub:
+            st.markdown(f"#### Unidades Básicas de Saúde (UBS) - Rede Municipal ({len(df_pub_excel)} locais)")
+            for _, row in df_pub_excel.iterrows():
+                nome = str(row['Nome']).strip()
+                end = str(row['Endereço']).strip()
+                link = str(row['Link localização']).strip()
+                tel = str(row['Telefone de Contato']).strip()
+                
+                link_end = f"[{end}]({link})" if link.startswith("http") else end
+                st.markdown(f"- **{nome}**  \n  📍 **Endereço:** {link_end}  \n  📞 **Telefone:** {tel}")
+
+        with tab_part:
+            st.markdown(f"#### Farmácias e Drogarias Particulares ({len(df_part_excel)} locais)")
+            for _, row in df_part_excel.iterrows():
+                nome = str(row['Nome']).strip()
+                end = str(row['Endereço']).strip()
+                link = str(row['Link localização']).strip()
+                tel = str(row['Telefone de Contato']).strip()
+                site = str(row['Site']).strip() if pd.notna(row['Site']) and str(row['Site']).strip() != 'nan' else None
+
+                nome_exib = f"[{nome}]({site})" if site and site.startswith("http") else nome
+                link_end = f"[{end}]({link})" if link.startswith("http") else end
+                
+                st.markdown(f"- **{nome_exib}**  \n  📍 **Endereço:** {link_end}  \n  📞 **Telefone:** {tel}")
 
     except Exception as e:
         st.error(f"Erro ao carregar o arquivo Excel de locais: {e}")
