@@ -72,7 +72,7 @@ if st.button("Pesquisar", type="primary") or termo_busca:
         try:
             conexao = sqlite3.connect("medicamentos.db")
             
-            # Busca os medicamentos equivalentes pela substância limpa
+            # Subconsulta inteligente: descobre as composições/substâncias exatas associadas ao termo buscado
             query = """
                 SELECT substancia, marca, apresentacao, laboratorio, preco, na_remume, marca_limpa, substancia_limpa 
                 FROM produtos 
@@ -82,18 +82,13 @@ if st.button("Pesquisar", type="primary") or termo_busca:
                     WHERE substancia_limpa LIKE ? OR marca_limpa LIKE ?
                 )
                 ORDER BY 
-                    CASE 
-                        WHEN UPPER(marca) = ? THEN 1
-                        WHEN UPPER(marca_limpa) LIKE ? THEN 2
-                        ELSE 3
-                    END ASC,
                     na_remume DESC, 
                     CASE WHEN preco = 0 THEN 999999 ELSE preco END ASC
             """
             
             param_search = f"%{termo_busca}%"
             
-            df = pd.read_sql(query, conexao, params=(param_search, param_search, termo_busca, param_search))
+            df = pd.read_sql(query, conexao, params=(param_search, param_search))
             conexao.close()
 
             if df.empty:
@@ -176,12 +171,11 @@ excel_file = "Farmacias Particular e Rede Pública.xlsx"
 
 if os.path.exists(excel_file):
     try:
-        # Carrega as abas do Excel
         df_part_excel = pd.read_excel(excel_file, sheet_name="Particular", skiprows=2)
         df_pub_excel = pd.read_excel(excel_file, sheet_name="Rede Publica", skiprows=3)
 
         with tab_pub:
-            st.markdown(f"#### Unidades Básicas de Saúde (UBS) - Rede Municipal")
+            st.markdown(f"#### Unidades Básicas de Saúde (UBS) - Rede Municipal ({len(df_pub_excel)} locais)")
             for _, row in df_pub_excel.iterrows():
                 nome = str(row['Nome']).strip()
                 end = str(row['Endereço']).strip()
@@ -192,7 +186,7 @@ if os.path.exists(excel_file):
                 st.markdown(f"- **{nome}**  \n  📍 **Endereço:** {link_end}  \n  📞 **Telefone:** {tel}")
 
         with tab_part:
-            st.markdown(f"#### Farmácias e Drogarias Particulares")
+            st.markdown(f"#### Farmácias e Drogarias Particulares ({len(df_part_excel)} locais)")
             for _, row in df_part_excel.iterrows():
                 nome = str(row['Nome']).strip()
                 end = str(row['Endereço']).strip()
