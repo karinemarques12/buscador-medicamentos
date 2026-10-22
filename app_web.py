@@ -46,7 +46,7 @@ st.markdown(
     """
     <div style="background-color: #f1f5f9; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
         <span style="font-weight: bold; color: #334155; margin-right: 15px;">LEGENDA:</span>
-        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito (REMUME / Rede Pública) / Baixo Custo</span>
+        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito (Rede Pública) / Baixo Custo</span>
         <span style="color: #854d0e; font-weight: bold; margin-right: 15px;">🟡 Custo Intermediário</span>
         <span style="color: #991b1b; font-weight: bold; margin-right: 15px;">🔴 Custo Elevado</span>
         <br><span style="color: #64748b; font-size: 0.85em; font-style: italic;">* PMC: Preço Máximo ao Consumidor estabelecido pela CMED/Anvisa.</span>
@@ -181,7 +181,7 @@ if os.path.exists(excel_file):
         df_pub_excel = pd.read_excel(excel_file, sheet_name="Rede Publica", skiprows=3)
 
         with tab_pub:
-            st.markdown(f"#### Unidades Básicas de Saúde (UBS) - Rede Municipal ({len(df_pub_excel)} locais)")
+            st.markdown(f"#### Unidades Básicas de Saúde (UBS) - Rede Municipal")
             for _, row in df_pub_excel.iterrows():
                 nome = str(row['Nome']).strip()
                 end = str(row['Endereço']).strip()
@@ -192,7 +192,7 @@ if os.path.exists(excel_file):
                 st.markdown(f"- **{nome}**  \n  📍 **Endereço:** {link_end}  \n  📞 **Telefone:** {tel}")
 
         with tab_part:
-            st.markdown(f"#### Farmácias e Drogarias Particulares ({len(df_part_excel)} locais)")
+            st.markdown(f"#### Farmácias e Drogarias Particulares")
             for _, row in df_part_excel.iterrows():
                 nome = str(row['Nome']).strip()
                 end = str(row['Endereço']).strip()
