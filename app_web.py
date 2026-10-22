@@ -49,7 +49,7 @@ st.markdown(
     """
     <div style="background-color: #f1f5f9; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
         <span style="font-weight: bold; color: #334155; margin-right: 15px;">LEGENDA:</span>
-        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito / Rede Pública / Baixo Custo</span>
+        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito (Rede Pública) / Baixo Custo</span>
         <span style="color: #854d0e; font-weight: bold; margin-right: 15px;">🟡 Custo Intermediário</span>
         <span style="color: #991b1b; font-weight: bold; margin-right: 15px;">🔴 Custo Elevado</span>
         <br><span style="color: #64748b; font-size: 0.85em; font-style: italic;">* PMC: Preço Máximo ao Consumidor estabelecido pela CMED/Anvisa.</span>
