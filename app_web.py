@@ -2,12 +2,9 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import os
-import requests
-import math
-import re
 
 # Configuração da página do site (Modo Wide / largura total)
-st.set_page_config(page_title="Buscador de Medicamentos - SPB", page_icon="💊", layout="wide")
+st.set_page_config(page_title="Buscador de Medicamentos - Santana de Parnaíba (SP)", page_icon="💊", layout="wide")
 
 # Cabeçalho centralizado com os logotipos
 col_logo1, col_titulo, col_logo2 = st.columns([1, 4, 1])
@@ -49,7 +46,7 @@ st.markdown(
     """
     <div style="background-color: #f1f5f9; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
         <span style="font-weight: bold; color: #334155; margin-right: 15px;">LEGENDA:</span>
-        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito (Rede Pública) / Baixo Custo</span>
+        <span style="color: #166534; font-weight: bold; margin-right: 15px;">🟢 Gratuito / Rede Pública / Baixo Custo</span>
         <span style="color: #854d0e; font-weight: bold; margin-right: 15px;">🟡 Custo Intermediário</span>
         <span style="color: #991b1b; font-weight: bold; margin-right: 15px;">🔴 Custo Elevado</span>
         <br><span style="color: #64748b; font-size: 0.85em; font-style: italic;">* PMC: Preço Máximo ao Consumidor estabelecido pela CMED/Anvisa.</span>
@@ -162,17 +159,21 @@ if st.button("Pesquisar", type="primary") or termo_busca:
         except Exception as e:
             st.error(f"Erro ao consultar o banco de dados: {e}")
 
-# --- SEÇÃO DE LOCAIS DE RETIRADA E BUSCA POR CEP PRECISA ---
+# --- SEÇÃO DE LOCAIS DE ATENDIMENTO (APENAS UBS E FARMÁCIAS PARTICULARES) ---
 st.markdown("---")
-st.markdown("### 📍 Onde Encontrar / Locais de Atendimento e Proximidade")
+st.markdown("### 📍 Onde Encontrar / Locais de Atendimento")
 
-tab_cep, tab_pub, tab_part = st.tabs(["🏥 Rede Pública (UBS)", "🛒 Farmácias Particulares"])
+tab_pub, tab_part = st.tabs(["🏥 Rede Pública (UBS)", "🛒 Farmácias Particulares"])
 
 excel_file = "Farmacias Particular e Rede Pública.xlsx"
 
+if os.path.exists(excel_file):
+    try:
+        df_part_excel = pd.read_excel(excel_file, sheet_name="Particular", skiprows=2)
+        df_pub_excel = pd.read_excel(excel_file, sheet_name="Rede Publica", skiprows=3)
 
         with tab_pub:
-            st.markdown(f"#### Unidades Básicas de Saúde (UBS) - Rede Municipal")
+            st.markdown(f"#### Unidades Básicas de Saúde (UBS) - Rede Municipal ({len(df_pub_excel)} locais)")
             for _, row in df_pub_excel.iterrows():
                 nome = str(row['Nome']).strip()
                 end = str(row['Endereço']).strip()
@@ -180,10 +181,10 @@ excel_file = "Farmacias Particular e Rede Pública.xlsx"
                 tel = str(row['Telefone de Contato']).strip()
                 
                 link_end = f"[{end}]({link})" if link.startswith("http") else end
-                st.markdown(f"- **{nome}**  \n  📍 {link_end}  \n  📞 {row['Telefone de Contato']}")
+                st.markdown(f"- **{nome}**  \n  📍 **Endereço:** {link_end}  \n  📞 **Telefone:** {tel}")
 
         with tab_part:
-            st.markdown(f"#### Farmácias e Drogarias Particulares")
+            st.markdown(f"#### Farmácias e Drogarias Particulares ({len(df_part_excel)} locais)")
             for _, row in df_part_excel.iterrows():
                 nome = str(row['Nome']).strip()
                 end = str(row['Endereço']).strip()
@@ -194,7 +195,7 @@ excel_file = "Farmacias Particular e Rede Pública.xlsx"
                 nome_exib = f"[{nome}]({site})" if site and site.startswith("http") else nome
                 link_end = f"[{end}]({link})" if link.startswith("http") else end
                 
-                st.markdown(f"- **{nome_exib}**  \n  📍 {link_end}  \n  📞 {row['Telefone de Contato']}")
+                st.markdown(f"- **{nome_exib}**  \n  📍 **Endereço:** {link_end}  \n  📞 **Telefone:** {tel}")
 
     except Exception as e:
         st.error(f"Erro ao carregar o arquivo Excel de locais: {e}")
