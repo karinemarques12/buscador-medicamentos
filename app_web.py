@@ -173,7 +173,7 @@ if os.path.exists(excel_file):
         df_pub_excel = pd.read_excel(excel_file, sheet_name="Rede Publica", skiprows=3)
 
         with tab_pub:
-            st.markdown(f"#### Unidades Básicas de Saúde (UBS) - Rede Municipal ({len(df_pub_excel)} locais)")
+            st.markdown(f"#### Unidades Básicas de Saúde (UBS) - Rede Municipal")
             for _, row in df_pub_excel.iterrows():
                 nome = str(row['Nome']).strip()
                 end = str(row['Endereço']).strip()
@@ -184,7 +184,7 @@ if os.path.exists(excel_file):
                 st.markdown(f"- **{nome}**  \n  📍 **Endereço:** {link_end}  \n  📞 **Telefone:** {tel}")
 
         with tab_part:
-            st.markdown(f"#### Farmácias e Drogarias Particulares ({len(df_part_excel)} locais)")
+            st.markdown(f"#### Farmácias e Drogarias Particulares")
             for _, row in df_part_excel.iterrows():
                 nome = str(row['Nome']).strip()
                 end = str(row['Endereço']).strip()
